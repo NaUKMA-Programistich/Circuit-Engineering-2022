@@ -23,36 +23,29 @@ bool isOpenDoor = false;
 
 // Init GPS
 #include <SoftwareSerial.h>
-#include <TinyGPS.h>
 #define PIN_GPS_TX 2
 #define PIN_GPS_RX 3
 SoftwareSerial gpsSerial(PIN_GPS_TX, PIN_GPS_RX);
-float gpslat, gpslon = 0.0;
-TinyGPS gps;
-char* gpsData = "";
+
+// Init watchdog
+#include <avr/wdt.h>
 
 // Init GSM
 #define PIN_GSM_TX 4
 #define PIN_GSM_RX 5
 SoftwareSerial gsmSerial(PIN_GSM_TX, PIN_GSM_RX);
 
-// Init watchdog
-#include <avr/wdt.h>
 
 void setup() {
   Serial.begin(9600);
   Serial.println("Start setup");
 
-  setupGSM();
-  setupGPS();
   setupServo();
   setupDiod();
   setupButton();
+  setupWatchDog();
+  setupGPS();
   setupRFID();
-}
-
-void setupGSM() {
-  gsmSerial.begin(9600);
 }
 
 void setupServo() {
@@ -86,27 +79,15 @@ void setupRFID() {
 }
 
 void loop() {
-  processGSM();
   processGPS();
+  processReset();
   processButton();
   processRFID();
-  processReset();
-}
-
-void processGSM() {
-  gsmSerial.listen();
-  if (gsmSerial.available() > 0) {
-    Serial.print("GSM: ");
-    Serial.write(gsmSerial.read());
-  }
 }
 
 void processGPS() {
-  gpsSerial.listen();
   while (gpsSerial.available() > 0) {
-    if (gps.encode(gpsSerial.read())) {
-      gps.f_get_position(&gpslat, &gpslon);
-    }
+    if (isOpenDoor) Serial.write(gpsSerial.read());
   }
 }
 
@@ -148,8 +129,8 @@ void readRFID() {
   if (rfid.PICC_IsNewCardPresent() and rfid.PICC_ReadCardSerial()) {
 
     Serial.print("UID: ");
-    for (uint8_t i = 0; i < 4; i++) {           // Цикл на 4 итерации
-      Serial.print(rfid.uid.uidByte[i]);   // Выводим UID по байтам
+    for (uint8_t i = 0; i < 4; i++) {
+      Serial.print(rfid.uid.uidByte[i]);
       Serial.print(", ");
     }
     Serial.println();
@@ -194,15 +175,7 @@ void closeDoor() {
 void openDoor() {
   greenLight();
   isOpenDoor = true;
-  sendMessage();
   servo.write(180); // end position - door opened
-}
-
-void sendMessage(char* text) {
-  Serial.print("Lat: ");
-  Serial.print(gpslat);
-  Serial.print(" Lon: ");
-  Serial.println(gpslon);
 }
 
 void greenLight() {
