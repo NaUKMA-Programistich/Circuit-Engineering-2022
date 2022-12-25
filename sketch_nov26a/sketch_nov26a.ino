@@ -43,16 +43,11 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Start setup");
 
-  setupGSM();
   setupGPS();
   setupServo();
   setupDiod();
   setupButton();
   setupRFID();
-}
-
-void setupGSM() {
-  gsmSerial.begin(9600);
 }
 
 void setupServo() {
@@ -86,26 +81,17 @@ void setupRFID() {
 }
 
 void loop() {
-  processGSM();
   processGPS();
   processButton();
   processRFID();
   processReset();
 }
 
-void processGSM() {
-  gsmSerial.listen();
-  if (gsmSerial.available() > 0) {
-    Serial.print("GSM: ");
-    Serial.write(gsmSerial.read());
-  }
-}
-
 void processGPS() {
   gpsSerial.listen();
   while (gpsSerial.available() > 0) {
-    if (gps.encode(gpsSerial.read())) {
-      gps.f_get_position(&gpslat, &gpslon);
+    if (isOpenDoor) {
+      Serial.write(gpsSerial.read());
     }
   }
 }
@@ -148,8 +134,8 @@ void readRFID() {
   if (rfid.PICC_IsNewCardPresent() and rfid.PICC_ReadCardSerial()) {
 
     Serial.print("UID: ");
-    for (uint8_t i = 0; i < 4; i++) {           // Цикл на 4 итерации
-      Serial.print(rfid.uid.uidByte[i]);   // Выводим UID по байтам
+    for (uint8_t i = 0; i < 4; i++) {
+      Serial.print(rfid.uid.uidByte[i]);
       Serial.print(", ");
     }
     Serial.println();
@@ -194,15 +180,7 @@ void closeDoor() {
 void openDoor() {
   greenLight();
   isOpenDoor = true;
-  sendMessage();
   servo.write(180); // end position - door opened
-}
-
-void sendMessage(char* text) {
-  Serial.print("Lat: ");
-  Serial.print(gpslat);
-  Serial.print(" Lon: ");
-  Serial.println(gpslon);
 }
 
 void greenLight() {
